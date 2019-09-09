@@ -1,15 +1,18 @@
 ' Name: remove_unsafe_characters.vbs
 ' Author: Darsh
-' Version: 0.1.0
-' Updated: 11.02.2013
+' Version: 0.2.0
+' Updated: 09.09.2019
 ' Target Files: files with extensions .jpg, .gif, .png, .pdf
-' Description: This script removes unsafe characters ((,),&,$,!,@,#,%,^,{,},[,],',`,~,;,+,= and spaces)in file names
+' Description: This script removes unsafe characters ((,),&,$,!,@,#,%,^,{,},[,],',`,~,;,+,=)in file names,
+' replaces spaces with - (dash) characters
+' adds a counter to duplicate files
 
 Dim objFso, startFolder, extRe, unsafeCharsRe, numberOfFiles, numberOfFolders, answer, prefix
 
 Set objFso = CreateObject("Scripting.FileSystemObject")
 Set extRe = new regexp
 Set unsafeCharsRe = new regexp
+Set spacesRe = new regexp
 Set startFolder = objFso.GetFolder(".")
 
 extRe.IgnoreCase = true
@@ -17,7 +20,11 @@ extRe.Pattern = "jpg|gif|png|pdf"
 
 unsafeCharsRe.IgnoreCase = true
 unsafeCharsRe.Global = true
-unsafeCharsRe.Pattern = "[^A-Za-z0-9.]"
+unsafeCharsRe.Pattern = "[^A-Za-z0-9.-]"
+
+spacesRe.IgnoreCase = true
+spacesRe.Global = true
+spacesRe.Pattern = "[\s]"
 
 numberOfFiles = 0
 numberOfFolders = 1
@@ -36,7 +43,8 @@ Function removeChars(folder)
 	
 	
 	For Each subfolder in subFolders
-		newFolderName = unsafeCharsRe.Replace(subfolder.Name,"")
+		newFolderName = spacesRe.Replace(subfolder.Name,"-")
+		newFolderName = Lcase(unsafeCharsRe.Replace(newFolderName,""))
 		
 		If (newFolderName<>subfolder.Name) Then
 			Call writeToLog(subfolder.Name & " >> " & newFolderName)
@@ -59,19 +67,28 @@ Function removeCharsInFiles(files)
 		
 		If (extRe.Test(ext)) Then
 			
+			currFileName = spacesRe.Replace(currFileName,"-")
 			currFileName = unsafeCharsRe.Replace(currFileName,"")
 			
 			If (currFileName<>File.Name) Then
 			
 				numberOfFiles = numberOfFiles + 1
+				count = 1
 				
 				If (currFileName = "." & ext) Then
 					currFileName = prefix & numberOfFiles & "." & ext
 				End If
-				Call writeToLog(File.Name & " >> " & currFileName)
-				File.Move(File.ParentFolder+"\"+currFileName)
+				
+				While objFso.FileExists(File.ParentFolder+"\"+currFileName)
+					currFileName = objFso.GetBaseName(currFileName) & count & "." & ext
+					count = count + 1
+				Wend
 				
 			End If
+			
+			currFileName = Lcase(currFileName)
+			Call writeToLog(File.Name & " >> " & currFileName)
+			File.Move(File.ParentFolder+"\"+currFileName)
 			
 		End If
 		
